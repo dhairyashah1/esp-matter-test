@@ -112,3 +112,5 @@ extern "C" void app_main()
     esp_matter::console::init();
 #endif
 }
+
+// This is a temporary change
