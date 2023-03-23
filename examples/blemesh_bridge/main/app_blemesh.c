@@ -32,6 +32,7 @@
 #include "esp_ble_mesh_networking_api.h"
 #include "esp_ble_mesh_config_model_api.h"
 #include "esp_ble_mesh_generic_model_api.h"
+#include "esp_ble_mesh_local_data_operation_api.h"
 
 #include "app_blemesh.h"
 
@@ -329,6 +330,10 @@ static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
         ble_mesh_prov_complete(param->provisioner_prov_complete.node_idx, param->provisioner_prov_complete.device_uuid,
                       param->provisioner_prov_complete.unicast_addr, param->provisioner_prov_complete.element_num,
                       param->provisioner_prov_complete.netkey_idx);
+        //// added PUB SUB functionality ////////////////////////////////////////////////////////////////////////////////
+        ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_PROV_COMPLETE_EVT ==============");
+        ESP_ERROR_CHECK(esp_ble_mesh_model_subscribe_group_addr(esp_ble_mesh_get_primary_element_address(), BLE_MESH_CID_NVAL, ESP_BLE_MESH_MODEL_ID_GEN_ONOFF_SRV, 0xC000));
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         break;
     case ESP_BLE_MESH_PROVISIONER_ADD_UNPROV_DEV_COMP_EVT:
         ESP_LOGI(TAG, "ESP_BLE_MESH_PROVISIONER_ADD_UNPROV_DEV_COMP_EVT, err_code %d", param->provisioner_add_unprov_dev_comp.err_code);
@@ -447,6 +452,20 @@ static void ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
                 ESP_LOGE(TAG, "%s: Generic OnOff Get failed", __func__);
                 return;
             }
+            //// added PUB SUB functionality ////////////////////////////////////////////////////////////////////////////////
+            esp_ble_mesh_cfg_client_set_state_t set_state = {0};
+            ble_mesh_set_msg_common(&common, node, config_client.model, ESP_BLE_MESH_MODEL_OP_MODEL_SUB_ADD);
+            set_state.model_sub_add.element_addr = node->unicast;
+            set_state.model_sub_add.model_id = ESP_BLE_MESH_MODEL_ID_GEN_ONOFF_SRV;
+            set_state.model_sub_add.company_id = ESP_BLE_MESH_CID_NVAL;
+            set_state.model_sub_add.sub_addr = 0xC000;
+            esp_err_t err = esp_ble_mesh_config_client_set_state(&common, &set_state);
+            ESP_LOGI(TAG, "PUB-SUB Config Model Sub Add Success");
+            if (err) {
+                ESP_LOGE(TAG, "%s: Config Model Subscription Add failed", __func__);
+                return;
+            }
+            /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             break;
         }
         default:
