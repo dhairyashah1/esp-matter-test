@@ -6,6 +6,8 @@ if(NOT DEFINED ENV{ESP_MATTER_PATH})
     message(FATAL_ERROR "Please set ESP_MATTER_PATH to the path of esp-matter repo")
 endif(NOT DEFINED ENV{ESP_MATTER_PATH})
 
+set(ESP_MATTER_T_PATH "/home/dhairya/esp/esp-matter-test")
+
 if(NOT DEFINED ENV{ESP_MATTER_DEVICE_PATH})
     if("${IDF_TARGET}" STREQUAL "esp32" OR "${IDF_TARGET}" STREQUAL "")
         set(ENV{ESP_MATTER_DEVICE_PATH} $ENV{ESP_MATTER_PATH}/device_hal/device/esp32_devkit_c)
@@ -32,7 +34,7 @@ include($ENV{ESP_MATTER_DEVICE_PATH}/esp_matter_device.cmake)
 set(EXTRA_COMPONENT_DIRS
     "${ESP_MATTER_PATH}/examples/common"
     "${MATTER_SDK_PATH}/config/esp32/components"
-    "${ESP_MATTER_PATH}/components"
+    "${ESP_MATTER_T_PATH}/components"
     "${ESP_MATTER_PATH}/device_hal/device"
     ${extra_components_dirs_append})
 
