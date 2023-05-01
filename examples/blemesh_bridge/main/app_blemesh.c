@@ -33,6 +33,8 @@
 #include "esp_ble_mesh_networking_api.h"
 #include "esp_ble_mesh_config_model_api.h"
 #include "esp_ble_mesh_generic_model_api.h"
+#include "esp_ble_mesh_lighting_model_api.h"
+#include "esp_ble_mesh_local_data_operation_api.h"
 
 #include "app_blemesh.h"
 
@@ -58,6 +60,10 @@ static uint8_t dev_uuid[16];
 
 static esp_ble_mesh_client_t config_client;
 static esp_ble_mesh_client_t onoff_client;
+static esp_ble_mesh_client_t level_client;
+static esp_ble_mesh_client_t lightness_client;
+// static esp_ble_mesh_client_t hsl_client;
+static esp_ble_mesh_client_t ctl_client;
 
 static esp_ble_mesh_cfg_srv_t config_server = {
     /* 3 transmissions with 20ms interval */
@@ -82,6 +88,10 @@ static esp_ble_mesh_model_t root_models[] = {
     ESP_BLE_MESH_MODEL_CFG_SRV(&config_server),
     ESP_BLE_MESH_MODEL_CFG_CLI(&config_client),
     ESP_BLE_MESH_MODEL_GEN_ONOFF_CLI(NULL, &onoff_client),
+    ESP_BLE_MESH_MODEL_GEN_LEVEL_CLI(NULL, &level_client),
+    ESP_BLE_MESH_MODEL_LIGHT_LIGHTNESS_CLI(NULL, &lightness_client),
+    // ESP_BLE_MESH_MODEL_LIGHT_HSL_CLI(NULL, &hsl_client),
+    ESP_BLE_MESH_MODEL_LIGHT_CTL_CLI(NULL, &ctl_client),
 };
 
 static esp_ble_mesh_elem_t elements[] = {
@@ -118,6 +128,7 @@ typedef struct {
     uint16_t unicast;
     uint8_t  elem_num;
     uint8_t  onoff;
+    uint16_t level;
 } ble_mesh_node_info_t;
 
 static ble_mesh_node_info_t nodes[CONFIG_BLE_MESH_MAX_PROV_NODES] = {
@@ -125,6 +136,7 @@ static ble_mesh_node_info_t nodes[CONFIG_BLE_MESH_MAX_PROV_NODES] = {
         .unicast = ESP_BLE_MESH_ADDR_UNASSIGNED,
         .elem_num = 0,
         .onoff = LED_OFF,
+        .level = 0,
     }
 };
 
@@ -270,6 +282,7 @@ static void ble_mesh_recv_unprov_adv_pkt(uint8_t dev_uuid[16], uint8_t addr[BD_A
     return;
 }
 
+// Generic Onoff State SET
 esp_err_t app_ble_mesh_onoff_set(uint16_t blemesh_addr, bool onoff)
 {
     esp_err_t err = ESP_OK;
@@ -281,6 +294,24 @@ esp_err_t app_ble_mesh_onoff_set(uint16_t blemesh_addr, bool onoff)
     set_state.onoff_set.op_en = false;
     set_state.onoff_set.onoff = onoff;
     set_state.onoff_set.tid = 0;
+
+    err = esp_ble_mesh_generic_client_set_state(&common, &set_state);
+
+    return err;
+}
+
+// Generic Level State SET
+esp_err_t app_ble_mesh_level_set(uint16_t blemesh_addr, int16_t level)
+{
+    esp_err_t err = ESP_OK;
+
+    esp_ble_mesh_client_common_param_t common = {0};
+    esp_ble_mesh_generic_client_set_state_t set_state = {0};
+
+    ble_mesh_set_msg_common(&common, blemesh_addr, level_client.model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET);
+    set_state.level_set.op_en = false;
+    set_state.level_set.level = level;
+    set_state.level_set.tid = 0;
 
     err = esp_ble_mesh_generic_client_set_state(&common, &set_state);
 
@@ -405,7 +436,7 @@ static void ble_mesh_config_client_cb(esp_ble_mesh_cfg_client_cb_event_t event,
             ESP_LOGI(TAG, "composition data %s", bt_hex(param->status_cb.comp_data_status.composition_data->data,
                      param->status_cb.comp_data_status.composition_data->len));
 
-            /** Find Expect Device */
+            /** Find Expect Device */ /// EDIT ///////////////////////////////////////////////////////////////////
             blemesh_bridge_match_bridged_onoff_light(param->status_cb.comp_data_status.composition_data->data, addr);
             
             esp_ble_mesh_cfg_client_set_state_t set_state = {0};
@@ -560,6 +591,22 @@ static void ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t ev
             }
             break;
         }
+        case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET: {
+            esp_ble_mesh_generic_client_set_state_t set_state = {0};
+            node->level = param->status_cb.level_status.present_level;
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET onoff: 0x%04x", node->level);
+            /* After Generic Levelf Status for Generic Level Get is received, Generic Level Set will be sent */
+            ble_mesh_set_msg_common(&common, node->unicast, level_client.model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET);
+            set_state.level_set.op_en = false;
+            set_state.level_set.level = node->level;
+            set_state.level_set.tid = 0;
+            err = esp_ble_mesh_generic_client_set_state(&common, &set_state);
+            if (err) {
+                ESP_LOGE(TAG, "%s: Generic Level Set failed", __func__);
+                return;
+            }
+            break;
+        }
         default:
             break;
         }
@@ -569,6 +616,10 @@ static void ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t ev
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET:
             node->onoff = param->status_cb.onoff_status.present_onoff;
             ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET onoff: 0x%02x", node->onoff);
+            break;
+        case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET:
+            node->level = param->status_cb.level_status.present_level;
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET level: 0x%04x", node->level);
             break;
         default:
             break;
@@ -589,6 +640,16 @@ static void ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t ev
             }
             break;
         }
+        case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET: {
+            esp_ble_mesh_generic_client_get_state_t get_state = {0};
+            ble_mesh_set_msg_common(&common, node->unicast, level_client.model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET);
+            err = esp_ble_mesh_generic_client_get_state(&common, &get_state);
+            if (err) {
+                ESP_LOGE(TAG, "%s: Generic Level Get failed", __func__);
+                return;
+            }
+            break;
+        }
         case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET: {
             esp_ble_mesh_generic_client_set_state_t set_state = {0};
             node->onoff = param->status_cb.onoff_status.present_onoff;
@@ -600,6 +661,21 @@ static void ble_mesh_generic_client_cb(esp_ble_mesh_generic_client_cb_event_t ev
             err = esp_ble_mesh_generic_client_set_state(&common, &set_state);
             if (err) {
                 ESP_LOGE(TAG, "%s: Generic OnOff Set failed", __func__);
+                return;
+            }
+            break;
+        }
+        case ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET: {
+            esp_ble_mesh_generic_client_set_state_t set_state = {0};
+            node->level = param->status_cb.level_status.present_level;
+            ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_GET level: 0x%04x", node->level);
+            ble_mesh_set_msg_common(&common, node->unicast, level_client.model, ESP_BLE_MESH_MODEL_OP_GEN_LEVEL_SET);
+            set_state.level_set.op_en = false;
+            set_state.level_set.level = node->level;
+            set_state.level_set.tid = 0;
+            err = esp_ble_mesh_generic_client_set_state(&common, &set_state);
+            if (err) {
+                ESP_LOGE(TAG, "%s: Generic Level Set failed", __func__);
                 return;
             }
             break;

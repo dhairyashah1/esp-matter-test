@@ -53,12 +53,28 @@ esp_err_t blemesh_bridge_match_bridged_onoff_light(uint8_t *composition_data, ui
         if (app_bridge_get_device_by_blemesh_addr(blemesh_addr)) {
             ESP_LOGI(TAG, "Bridged node for 0x%04x bridged device on endpoint %d has been created", blemesh_addr,
                     app_bridge_get_matter_endpointid_by_blemesh_addr(blemesh_addr));
+        // } else {
+        //     app_bridged_device_t *bridged_device =
+        //         app_bridge_create_bridged_device(node, aggregator_endpoint_id, ESP_MATTER_ON_OFF_LIGHT_DEVICE_TYPE_ID,
+        //                                          ESP_MATTER_BRIDGED_DEVICE_TYPE_BLEMESH,
+        //                                          app_bridge_blemesh_address(blemesh_addr));
+        //     ESP_RETURN_ON_FALSE(bridged_device, ESP_FAIL, TAG, "Failed to create bridged device (on_off light)");
+        //     ESP_LOGI(TAG, "Create/Update bridged node for 0x%04x bridged device on endpoint %d", blemesh_addr,
+        //             app_bridge_get_matter_endpointid_by_blemesh_addr(blemesh_addr));
+        // } else {
+        //     app_bridged_device_t *bridged_device =
+        //         app_bridge_create_bridged_device(node, aggregator_endpoint_id, ESP_MATTER_DIMMABLE_LIGHT_DEVICE_TYPE_ID, 
+        //                                          ESP_MATTER_BRIDGED_DEVICE_TYPE_BLEMESH,
+        //                                          app_bridge_blemesh_address(blemesh_addr));
+        //     ESP_RETURN_ON_FALSE(bridged_device, ESP_FAIL, TAG, "Failed to create bridged device (dimmable light)");
+        //     ESP_LOGI(TAG, "Create/Update bridged node for 0x%04x bridged device on endpoint %d", blemesh_addr,
+        //             app_bridge_get_matter_endpointid_by_blemesh_addr(blemesh_addr));
         } else {
             app_bridged_device_t *bridged_device =
-                app_bridge_create_bridged_device(node, aggregator_endpoint_id, ESP_MATTER_ON_OFF_LIGHT_DEVICE_TYPE_ID,
+                app_bridge_create_bridged_device(node, aggregator_endpoint_id, ESP_MATTER_COLOR_TEMPERATURE_LIGHT_DEVICE_TYPE_ID, 
                                                  ESP_MATTER_BRIDGED_DEVICE_TYPE_BLEMESH,
                                                  app_bridge_blemesh_address(blemesh_addr));
-            ESP_RETURN_ON_FALSE(bridged_device, ESP_FAIL, TAG, "Failed to create bridged device (on_off light)");
+            ESP_RETURN_ON_FALSE(bridged_device, ESP_FAIL, TAG, "Failed to create bridged device (color_temperature light)");
             ESP_LOGI(TAG, "Create/Update bridged node for 0x%04x bridged device on endpoint %d", blemesh_addr,
                     app_bridge_get_matter_endpointid_by_blemesh_addr(blemesh_addr));
         }
