@@ -20,7 +20,8 @@ using namespace chip::app::Clusters;
 using namespace esp_matter;
 
 static const char *TAG = "app_driver";
-extern uint16_t light_endpoint_id;
+extern uint16_t light_endpoint_id_1;
+extern uint16_t light_endpoint_id_2;
 
 /* Do any conversions/remapping for the actual value here */
 static esp_err_t app_driver_light_set_power(led_driver_handle_t handle, esp_matter_attr_val_t *val)
@@ -55,7 +56,8 @@ static esp_err_t app_driver_light_set_temperature(led_driver_handle_t handle, es
 static void app_driver_button_toggle_cb(void *arg, void *data)
 {
     ESP_LOGI(TAG, "Toggle button pressed");
-    uint16_t endpoint_id = light_endpoint_id;
+    uint16_t endpoint_id = light_endpoint_id_2; // Endpoint ID which is to hooked to the BOOT Button
+    // uint16_t endpoint_id = light_endpoint_id; 
     uint32_t cluster_id = OnOff::Id;
     uint32_t attribute_id = OnOff::Attributes::OnOff::Id;
 
@@ -74,7 +76,7 @@ esp_err_t app_driver_attribute_update(app_driver_handle_t driver_handle, uint16_
                                       uint32_t attribute_id, esp_matter_attr_val_t *val)
 {
     esp_err_t err = ESP_OK;
-    if (endpoint_id == light_endpoint_id) {
+    // if (endpoint_id == light_endpoint_id) {
         led_driver_handle_t handle = (led_driver_handle_t)driver_handle;
         if (cluster_id == OnOff::Id) {
             if (attribute_id == OnOff::Attributes::OnOff::Id) {
@@ -93,7 +95,7 @@ esp_err_t app_driver_attribute_update(app_driver_handle_t driver_handle, uint16_
                 err = app_driver_light_set_temperature(handle, val);
             }
         }
-    }
+    // }
     return err;
 }
 

@@ -19,8 +19,11 @@
 
 #include <app/server/CommissioningWindowManager.h>
 #include <app/server/Server.h>
+#include <led_driver.h>
+
 static const char *TAG = "app_main";
-uint16_t light_endpoint_id = 0;
+uint16_t light_endpoint_id_1 = 0;
+uint16_t light_endpoint_id_2 = 0;
 
 using namespace esp_matter;
 using namespace esp_matter::attribute;
@@ -127,8 +130,14 @@ extern "C" void app_main()
     /* Initialize the ESP NVS layer */
     nvs_flash_init();
 
+    led_driver_config_t config_led_1 = {.gpio = 12, .channel = 0};
+    led_driver_config_t config_led_2 = {.gpio = 13, .channel = 1};
+
     /* Initialize driver */
-    app_driver_handle_t light_handle = app_driver_light_init();
+    // app_driver_handle_t light_handle = app_driver_light_init();
+    
+    led_driver_handle_t handle_led_1 = led_driver_init(&config_led_1);
+    led_driver_handle_t handle_led_2 = led_driver_init(&config_led_2);
     app_driver_handle_t button_handle = app_driver_button_init();
     app_reset_button_register(button_handle);
 
@@ -144,15 +153,22 @@ extern "C" void app_main()
     light_config.color_control.color_mode = EMBER_ZCL_COLOR_MODE_COLOR_TEMPERATURE;
     light_config.color_control.enhanced_color_mode = EMBER_ZCL_COLOR_MODE_COLOR_TEMPERATURE;
     light_config.color_control.color_temperature.startup_color_temperature_mireds = nullptr;
-    endpoint_t *endpoint = extended_color_light::create(node, &light_config, ENDPOINT_FLAG_NONE, light_handle);
+    // endpoint_t *endpoint = extended_color_light::create(node, &light_config, ENDPOINT_FLAG_NONE, light_handle);
+
+    endpoint_t *endpoint1 = extended_color_light::create(node, &light_config, ENDPOINT_FLAG_NONE, (app_driver_handle_t)handle_led_1);
+    endpoint_t *endpoint2 = extended_color_light::create(node, &light_config, ENDPOINT_FLAG_NONE, (app_driver_handle_t)handle_led_2);
 
     /* These node and endpoint handles can be used to create/add other endpoints and clusters. */
-    if (!node || !endpoint) {
+    if (!node || !endpoint1 || !endpoint2) {
         ESP_LOGE(TAG, "Matter node creation failed");
     }
 
-    light_endpoint_id = endpoint::get_id(endpoint);
-    ESP_LOGI(TAG, "Light created with endpoint_id %d", light_endpoint_id);
+    // light_endpoint_id = endpoint::get_id(endpoint);
+    // ESP_LOGI(TAG, "Light created with endpoint_id %d", light_endpoint_id);
+    light_endpoint_id_1 = endpoint::get_id(endpoint1);
+    ESP_LOGI(TAG, "Light 1 created with endpoint_id %d", light_endpoint_id_1);
+    light_endpoint_id_2 = endpoint::get_id(endpoint2);
+    ESP_LOGI(TAG, "Light 2 created with endpoint_id %d", light_endpoint_id_2);
 
     /* Matter start */
     err = esp_matter::start(app_event_cb);
@@ -161,7 +177,9 @@ extern "C" void app_main()
     }
 
     /* Starting driver with default values */
-    app_driver_light_set_defaults(light_endpoint_id);
+    // app_driver_light_set_defaults(light_endpoint_id);
+    app_driver_light_set_defaults(light_endpoint_id_1);
+    app_driver_light_set_defaults(light_endpoint_id_2);
 
 #if CONFIG_ENABLE_CHIP_SHELL
     esp_matter::console::diagnostics_register_commands();
